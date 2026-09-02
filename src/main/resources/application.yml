@@ -1,0 +1,116 @@
+# ============================================================================
+# Shipment Service - общая/конфигурация по умолчанию
+# Секреты никогда не хранятся в этом файле; они берутся из переменных окружения.
+# ============================================================================
+spring:
+  application:
+    name: shipment-service
+
+  # --- PostgreSQL (значения переопределяются по профилям через env) ---
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/shipments}
+    username: ${DATABASE_USERNAME:shipment}
+    password: ${DATABASE_PASSWORD:shipment}
+    hikari:
+      pool-name: shipment-db-pool
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  # --- JPA ---
+  jpa:
+    hibernate:
+      # Схемой управляет только Flyway.
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  # --- Flyway ---
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  # --- RabbitMQ ---
+  rabbitmq:    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+  # --- Jackson / JSON ---
+  jackson:    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+  tomcat:
+    # Ограничение тела запроса, чтобы не принимать чрезмерно большие payload.
+    max-swallow-size: 2MB
+    max-http-form-post-size: 2MB
+
+# --- OAuth2 / OIDC resource server (Keycloak) ---
+spring.security.oauth2.resourceserver.jwt:
+  issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8000/realms/logistics}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: db, rabbit
+          show-details: never
+        liveness:
+          include: livenessState
+          show-details: never
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: shipment-service
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    oauth:
+      client-id: shipment-service
+
+app:
+  openapi:
+    oauth:
+      token-url: ${KEYCLOAK_TOKEN_URL:http://localhost:8000/realms/logistics/protocol/openid-connect/token}
+  outbox:
+    poll-interval-ms: 2000
+  idempotency:
+    cleanup-interval-ms: 3600000
+  rabbitmq:
+    event:
+      exchange: logistics.events.direct
+      routing-prefix: shipment.event
+      queue: q.shipment.events
+    prefetch: 10
+    max-attempts: 5
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z',UTC} %-5level [traceId=%X{traceId:-},spanId=%X{spanId:-},correlationId=%X{correlationId:-}] %logger{36} - %msg%n"

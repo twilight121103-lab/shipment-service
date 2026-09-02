@@ -1,0 +1,57 @@
+{
+  "realm": "logistics",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "LOGISTICS_USER", "description": "Can create shipments and view own" },
+      { "name": "LOGISTICS_OPERATOR", "description": "Can view and change shipment status" },
+      { "name": "LOGISTICS_ADMIN", "description": "Full access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "shipment-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "shipment-service-secret",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "authorizationServicesEnabled": false,
+      "redirectUris": ["http://localhost:8080/*", "http://localhost:8081/*"],
+      "webOrigins": ["http://localhost:8080"]
+    },
+    {
+      "clientId": "swagger",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:8080/swagger-ui/oauth2-redirect.html"]
+    }
+  ],
+  "users": [
+    {
+      "username": "user",
+      "enabled": true,
+      "email": "user@logistics.local",
+      "credentials": [{ "type": "password", "value": "user123", "temporary": false }],
+      "realmRoles": ["LOGISTICS_USER"]
+    },
+    {
+      "username": "operator",
+      "enabled": true,
+      "email": "operator@logistics.local",
+      "credentials": [{ "type": "password", "value": "operator123", "temporary": false }],
+      "realmRoles": ["LOGISTICS_OPERATOR"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@logistics.local",
+      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
+      "realmRoles": ["LOGISTICS_ADMIN"]
+    }
+  ]
+}

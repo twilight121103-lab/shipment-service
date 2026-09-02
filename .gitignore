@@ -1,0 +1,15 @@
+target/
+*.class
+*.log
+*.tmp
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Secrets (never commit)
+*.pem
+*.jks
+*keystore*
+.env
+.env.*

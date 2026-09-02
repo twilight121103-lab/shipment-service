@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  build:
+    name: Compile, test, scan, build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Compile
+        run: mvn -B -no-transfer-progress compile
+
+      - name: Unit tests
+        run: mvn -B -no-transfer-progress test
+
+      - name: Integration tests (Testcontainers)
+        run: mvn -B -no-transfer-progress -Pintegration-test verify
+        env:
+          # На GitHub runner'е есть Docker; Testcontainers использует его.
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      # ---- Статический анализ ----
+      - name: Static analysis (SpotBugs)
+        run: mvn -B -no-transfer-progress -Pstatic-analysis compile spotbugs:spotbugs
+
+      # ---- Сканирование уязвимостей зависимостей (OWASP DC) ----
+      - name: Dependency vulnerability scan
+        run: mvn -B -no-transfer-progress org.owasp:dependency-check-maven:10.0.4:check -DfailBuildOnCVSS=8
+        continue-on-error: true
+
+      # ---- Build + docker image ----
+      - name: Build jar
+        run: mvn -B -no-transfer-progress package -DskipTests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: shipment-service:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
